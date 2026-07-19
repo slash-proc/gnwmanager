@@ -203,7 +203,9 @@ def _setup_logging(verbosity):
 @app.meta.default
 def main(
     *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
-    backend: Annotated[Literal["openocd", "pyocd"], Parameter(name=["--backend", "-b"])] = "openocd",
+    backend: Annotated[Literal["openocd", "pyocd", "gdb"], Parameter(name=["--backend", "-b"])] = "openocd",
+    gdb_host: Annotated[str, Parameter(name=["--gdb-host"])] = "localhost",
+    gdb_port: Annotated[int, Parameter(name=["--gdb-port"])] = 1234,
     frequency: Annotated[Optional[int], Parameter(name=["--frequency", "-f"], converter=int_parser)] = None,
     verbosity: Annotated[
         Literal["debug", "info", "warning", "error"], Parameter(env_var="GNWMANAGER_VERBOSITY")
@@ -216,7 +218,11 @@ def main(
     Parameters
     ----------
     backend
-        Underlying on-chip-debugger backend to use.
+        Underlying on-chip-debugger backend to use. Use "gdb" to connect to a QEMU instance's gdbstub.
+    gdb_host
+        Host to connect to when using the "gdb" backend.
+    gdb_port
+        Port to connect to when using the "gdb" backend.
     frequency
         Debug probe frequency. Defaults to a typically reasonable fast value.
     """
@@ -238,7 +244,8 @@ def main(
 
             if "gnw" in ignored:
                 if gnw is None:
-                    gnw = GnW(OCDBackend[backend]())
+                    backend_kwargs = {"host": gdb_host, "port": gdb_port} if backend == "gdb" else {}
+                    gnw = GnW(OCDBackend[backend](**backend_kwargs))
                     gnw.backend.open()
                     if frequency is not None:
                         gnw.backend.set_frequency(frequency)
